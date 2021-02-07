@@ -3,9 +3,7 @@ import Form from "@rjsf/fluent-ui";
 
 import { useCeramic } from "../hooks/ceramic";
 
-function useDocForm({ id }) {
-  const { ceramic } = useCeramic();
-
+function useDocForm({ id }, ceramic) {
   const [data, setData] = useState();
   const [schema, setSchema] = useState();
   const [error, setError] = useState();
@@ -70,7 +68,6 @@ export default function DocumentForm({ id }) {
   const { data, error, schema, handleUpdate } = useDocForm({ id });
   return (
     <div>
-      <pre>Logged in as: {data?.context.did?.id}</pre>
       {schema?.content && (
         <Form
           schema={schema.content}

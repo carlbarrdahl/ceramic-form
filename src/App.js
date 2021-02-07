@@ -1,9 +1,10 @@
 import { useState } from "react";
-import Controls from "./components/Controls";
 
 import CeramicProvider from "./hooks/ceramic";
 
-const { default: DocumentForm } = require("./components/DocForm");
+import DocumentForm from "./components/DocForm";
+import Controls from "./components/Controls";
+import Profile from "./components/Profile";
 
 function App() {
   const [state, setState] = useState(() =>
@@ -30,6 +31,7 @@ function App() {
         </pre>
       </p>
       <CeramicProvider apiHost={state.apiHost} seed={state.seed}>
+        <Profile />
         <Controls doc={state.doc} seed={state.seed} onChange={setState} />
         <DocumentForm id={state.doc} />
       </CeramicProvider>
