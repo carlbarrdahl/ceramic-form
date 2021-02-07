@@ -3,7 +3,8 @@ import Form from "@rjsf/fluent-ui";
 
 import { useCeramic } from "../hooks/ceramic";
 
-function useDocForm({ id }, ceramic) {
+function useDocForm({ id }) {
+  const { ceramic } = useCeramic();
   const [data, setData] = useState();
   const [schema, setSchema] = useState();
   const [error, setError] = useState();
