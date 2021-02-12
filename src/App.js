@@ -1,42 +1,88 @@
 import { useState } from "react";
-
-import CeramicProvider from "./hooks/ceramic";
+import { Box, Button, Divider, Typography } from "@material-ui/core";
+import CeramicProvider, { useAuth } from "./hooks/ceramic";
+import { definitions } from "@ceramicstudio/idx-constants";
 
 import DocumentForm from "./components/DocForm";
-import Controls from "./components/Controls";
-import Profile from "./components/Profile";
+import { useDefinition } from "./hooks/schema";
 
-function App() {
-  const [state, setState] = useState(() =>
-    Object.fromEntries(new URLSearchParams(window.location.search))
-  );
+function App({ def, successUrl }) {
+  const { profile, isLoading, signIn } = useAuth();
+
+  const { data, error } = useDefinition(def);
 
   return (
-    <main style={{ margin: "0 auto", maxWidth: 768 }}>
-      <h1>Ceramic form</h1>
-      <p>
-        Enter a document ID and a form is automagically rendered based on the
-        json-schema for the data.
-      </p>
-      <p>Try to update the fields and press submit.</p>
-      <p>
-        Parameters can be linked in the url as query params:{" "}
-        <code>apiHost</code>, <code>seed</code>, and <code>doc</code>
-      </p>
-      <p>
-        Example:{" "}
-        <pre style={{ overflowX: "scroll", padding: 8 }}>
-          {window.location.origin}
-          ?apiHost=http://localhost:7007&doc=kjzl6cwe1jw147ifstjj0s89x6791tox2phgttepmgao70jvocpoah6hck6v5zy&seed=f689625a1b1a5943a4c8ad1b23325455cfb0871503e387cc1e7d9b6acb3dc431
-        </pre>
-      </p>
-      <CeramicProvider apiHost={state.apiHost} seed={state.seed}>
-        <Profile />
-        <Controls doc={state.doc} seed={state.seed} onChange={setState} />
-        <DocumentForm id={state.doc} />
-      </CeramicProvider>
-    </main>
+    <Box mx="auto" maxWidth={768}>
+      {error && <pre>{error}</pre>}
+      <Box py={4} px={4}>
+        {error && <pre>{error}</pre>}
+        <Box mb={3}>
+          <Typography variant="h5" gutterBottom>
+            {data?.name}
+          </Typography>
+          <Typography variant="body1">{data?.description}</Typography>
+        </Box>
+        <Divider light />
+
+        {isLoading ? (
+          <pre>Loading profile...</pre>
+        ) : profile ? (
+          <DocumentForm
+            definition={data}
+            onSubmit={({ did }) => {
+              console.log("Calling successUrl", successUrl, did);
+              successUrl &&
+                fetch(`${successUrl}?did=${did}`)
+                  .then((res) => {
+                    console.log("SuccessUrl called successfully");
+                  })
+                  .catch(console.error);
+            }}
+          />
+        ) : (
+          <Button
+            variant="outlined"
+            color="primary"
+            size="large"
+            onClick={signIn}
+          >
+            Sign in to get started
+          </Button>
+        )}
+      </Box>
+    </Box>
   );
 }
 
-export default App;
+export default () => {
+  const [params] = useState(() =>
+    Object.fromEntries(new URLSearchParams(window.location.search))
+  );
+  if (!params.def) {
+    const exampleUrl = `${window.location.origin}?def=BasicProfile`;
+    return (
+      <pre>
+        URL params missing - def is required. <br />
+        Try this: <a href={exampleUrl}>{exampleUrl}</a>
+      </pre>
+    );
+  }
+  const defName = toCamelCase(params.def);
+  if (definitions[defName]) {
+    params.def = definitions[defName];
+  }
+
+  return (
+    <CeramicProvider {...params}>
+      <App {...params} />
+    </CeramicProvider>
+  );
+};
+
+export function toCamelCase(str) {
+  str = str.replace(/[-_\s]+(.)?/g, (match, ch) =>
+    ch ? ch.toUpperCase() : ""
+  );
+
+  return str.substr(0, 1).toLowerCase() + str.substr(1);
+}

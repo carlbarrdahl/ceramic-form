@@ -1,96 +1,101 @@
 import { useCallback, useEffect, useState } from "react";
-import Form from "@rjsf/fluent-ui";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Divider,
+  Typography,
+} from "@material-ui/core";
+// import Form from "@rjsf/material-ui";
+import { JsonForms } from "@jsonforms/react";
+import {
+  materialCells,
+  materialRenderers,
+} from "@jsonforms/material-renderers";
 
+import { toCamelCase } from "../App";
 import { useCeramic } from "../hooks/ceramic";
 
-function useDocForm({ id }) {
-  const { ceramic } = useCeramic();
-  const [data, setData] = useState();
-  const [schema, setSchema] = useState();
+export function useSchema({ name, schema }) {
+  const { ceramic, idx } = useCeramic();
+  const [data, setData] = useState({});
   const [error, setError] = useState();
+  const [isLoading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (id && ceramic) {
-      ceramic
-        .loadDocument(id)
-        .then((doc) => {
-          if (doc.metadata.schema) {
-            ceramic.loadDocument(doc.metadata.schema).then((schemaDoc) => {
-              setData(doc);
-              setSchema(schemaDoc);
-            });
-          } else {
-            // Document is schema
-            setSchema(doc);
-            setData();
-          }
-        })
-        .catch((err) => {
-          setError(err);
-        });
-    }
-  }, [ceramic, id]);
+    const defName = toCamelCase(name);
+    console.log("Loading schema...", schema);
+    setLoading(true);
+    Promise.all([ceramic.loadDocument(schema), idx.get(defName, idx.id)])
+      .then(([doc, values]) => {
+        console.log("Schema loaded successfully", doc);
+        console.log("With existing data", values);
+
+        setData({ values, schema: doc.content });
+      })
+      .catch((err) => setError(err?.toString()))
+      .finally(() => setLoading(false));
+  }, [name, schema, ceramic]);
 
   const handleUpdate = useCallback(
     (content) => {
-      console.log("handleUpdate", data, content);
-      if (data) {
-        data
-          .change({ content })
-          .then(() => ceramic.loadDocument(data.id.toString()).then(setData))
-          .catch((err) => {
-            console.log(err);
-            setError(err);
-          });
-      } else {
-        // TODO: Create a new document
-        console.log("TODO: create a new document", {
-          content,
-          metadata: { schema: `ceramic://${id}` },
-        });
-        /*
-        ceramic
-          .createDocument("tile", {
-            content,
-            metadata: { schema: `ceramic://${id}` },
-          })
-          .then((doc) => {
-            console.log("res", doc, doc?.id, doc?.content, doc?.id.toString());
-          });
-        */
-      }
+      console.log("Merging data...", data, content);
+      return idx
+        .merge(toCamelCase(name), content)
+        .then(() => {
+          console.log("Data merged successfully");
+          return { did: idx.id };
+        })
+        .catch(setError);
     },
-    [data]
+    [data, idx]
   );
-  return { data, error, schema, handleUpdate };
+
+  return { data, error, isLoading, handleUpdate };
 }
 
-export default function DocumentForm({ id }) {
-  const { data, error, schema, handleUpdate } = useDocForm({ id });
+export default function DocumentForm({ definition, onSubmit }) {
+  const [state, setState] = useState();
+  const { data, error, isLoading, handleUpdate } = useSchema(definition);
+  console.log("schema", data, error);
+  if (isLoading) {
+    return <pre>Loading form...</pre>;
+  }
   return (
-    <div>
-      {schema?.content && (
-        <Form
-          schema={schema.content}
-          formData={data?.content || {}}
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleUpdate(state).then(onSubmit);
+      }}
+    >
+      {data.schema && (
+        <Box pt={3}>
+          <JsonForms
+            schema={data.schema}
+            //uischema={uischema}
+            data={data.values}
+            renderers={materialRenderers}
+            cells={materialCells}
+            onChange={({ errors, data }) => setState(data)}
+          />
+          <Box mt={3} display="flex" justifyContent="flex-end">
+            <Button variant="contained" color="primary" type="submit">
+              Submit
+            </Button>
+          </Box>
+        </Box>
+        /*  <Form
+          schema={data.content}
+          validate={() => false}
+          noHtml5Validate
+          formData={values}
           onSubmit={(values) => handleUpdate(values.formData)}
           onError={(err) => console.log(err)}
-        />
+        /> */
       )}
       <pre style={{ color: "red" }}>
         {JSON.stringify(error?.toString(), null, 2)}
       </pre>
-      <pre>
-        {JSON.stringify(
-          {
-            content: data?.content,
-            controllers: data?.controllers,
-            metadata: data?.metadata,
-          },
-          null,
-          2
-        )}
-      </pre>
-    </div>
+    </form>
   );
 }
