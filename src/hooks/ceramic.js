@@ -30,7 +30,7 @@ export function useAuth() {
       localStorage.setItem("hasSignedIn", idx.id);
 
       console.log("Getting profile...");
-      const _profile = await idx.get("basicProfile");
+      const _profile = (await idx.get("basicProfile")) || {};
       setProfile(_profile);
       console.log("Profile found", _profile);
       setLoading(false);
