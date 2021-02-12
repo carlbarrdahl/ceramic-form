@@ -28,10 +28,11 @@ function App({ def, successUrl }) {
           <pre>Loading profile...</pre>
         ) : profile ? (
           <DocumentForm
-            definition={data}
-            onSubmit={({ did }) => {
+            definition={{ ...data, def }}
+            onSubmit={({ did } = {}) => {
               console.log("Calling successUrl", successUrl, did);
               successUrl &&
+                did &&
                 fetch(`${successUrl}?did=${did}&def=${def}`)
                   .then((res) => {
                     console.log("SuccessUrl called successfully");
