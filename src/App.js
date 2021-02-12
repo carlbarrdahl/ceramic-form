@@ -32,7 +32,7 @@ function App({ def, successUrl }) {
             onSubmit={({ did }) => {
               console.log("Calling successUrl", successUrl, did);
               successUrl &&
-                fetch(`${successUrl}?did=${did}`)
+                fetch(`${successUrl}?did=${did}&def=${def}`)
                   .then((res) => {
                     console.log("SuccessUrl called successfully");
                   })
